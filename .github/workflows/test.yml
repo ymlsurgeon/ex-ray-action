@@ -98,7 +98,6 @@ jobs:
       - name: Verify severity filter applied
         run: |
           echo "Critical-only scan: ${{ steps.scan_critical.outputs.findings_count }} finding(s)"
-          # Count should be <= total findings from full scan
           echo "Severity filter working correctly"
 
   test-tenant-id:
@@ -119,10 +118,10 @@ jobs:
         run: |
           SARIF_FILE="/tmp/dev-trust-scanner-results.sarif"
           TENANT=$(python3 -c "
-import json
-d = json.load(open('${SARIF_FILE}'))
-print(d['runs'][0]['properties'].get('tenantId', 'MISSING'))
-")
+          import json
+          d = json.load(open('${SARIF_FILE}'))
+          print(d['runs'][0]['properties'].get('tenantId', 'MISSING'))
+          ")
           if [ "${TENANT}" != "self-test-tenant" ]; then
             echo "Expected tenantId 'self-test-tenant', got '${TENANT}'"
             exit 1
