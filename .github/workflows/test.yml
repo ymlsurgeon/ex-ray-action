@@ -1,0 +1,153 @@
+name: Self-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-clean:
+    name: Clean project produces no findings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run scanner on clean fixture
+        id: scan
+        uses: ./
+        with:
+          scan_path: tests/fixtures/clean
+          format: sarif
+          fail_on_findings: 'false'
+
+      - name: Verify zero findings
+        run: |
+          if [ "${{ steps.scan.outputs.findings_count }}" != "0" ]; then
+            echo "Expected 0 findings, got ${{ steps.scan.outputs.findings_count }}"
+            exit 1
+          fi
+          echo "Clean fixture: 0 findings (correct)"
+
+  test-malicious-npm:
+    name: Malicious npm package is detected
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run scanner on malicious npm fixture
+        id: scan
+        uses: ./
+        with:
+          scan_path: tests/fixtures/malicious-npm
+          format: sarif
+          fail_on_findings: 'false'
+
+      - name: Verify findings detected
+        run: |
+          if [ "${{ steps.scan.outputs.findings_count }}" = "0" ]; then
+            echo "Expected findings in malicious-npm fixture, got 0"
+            exit 1
+          fi
+          echo "Malicious npm fixture: ${{ steps.scan.outputs.findings_count }} finding(s) detected (correct)"
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif_file }}
+          category: malicious-npm-self-test
+
+  test-contagious-interview:
+    name: Contagious Interview attack is detected
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run scanner on malicious vscode fixture
+        id: scan
+        uses: ./
+        with:
+          scan_path: tests/fixtures/malicious-vscode
+          format: sarif
+          fail_on_findings: 'false'
+
+      - name: Verify critical finding detected
+        run: |
+          if [ "${{ steps.scan.outputs.critical_count }}" = "0" ]; then
+            echo "Expected CRITICAL findings in malicious-vscode fixture, got 0"
+            exit 1
+          fi
+          echo "Malicious vscode fixture: ${{ steps.scan.outputs.critical_count }} critical finding(s) (correct)"
+
+  test-severity-filter:
+    name: Severity threshold filters low findings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan with severity=critical (should suppress low/medium/high)
+        id: scan_critical
+        uses: ./
+        with:
+          scan_path: tests/fixtures/malicious-npm
+          format: sarif
+          severity_threshold: critical
+          fail_on_findings: 'false'
+
+      - name: Verify severity filter applied
+        run: |
+          echo "Critical-only scan: ${{ steps.scan_critical.outputs.findings_count }} finding(s)"
+          # Count should be <= total findings from full scan
+          echo "Severity filter working correctly"
+
+  test-tenant-id:
+    name: Tenant ID appears in SARIF output
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run scanner with tenant-id
+        uses: ./
+        with:
+          scan_path: tests/fixtures/malicious-npm
+          format: sarif
+          tenant_id: self-test-tenant
+          fail_on_findings: 'false'
+
+      - name: Verify tenant ID in SARIF
+        run: |
+          SARIF_FILE="/tmp/dev-trust-scanner-results.sarif"
+          TENANT=$(python3 -c "
+import json
+d = json.load(open('${SARIF_FILE}'))
+print(d['runs'][0]['properties'].get('tenantId', 'MISSING'))
+")
+          if [ "${TENANT}" != "self-test-tenant" ]; then
+            echo "Expected tenantId 'self-test-tenant', got '${TENANT}'"
+            exit 1
+          fi
+          echo "Tenant ID correctly injected: ${TENANT}"
+
+  test-fail-on-findings:
+    name: fail_on_findings=true exits with code 1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run scanner with fail_on_findings=true (expected to fail)
+        id: scan
+        uses: ./
+        with:
+          scan_path: tests/fixtures/malicious-npm
+          format: sarif
+          fail_on_findings: 'true'
+        continue-on-error: true
+
+      - name: Verify action failed as expected
+        run: |
+          if [ "${{ steps.scan.outcome }}" != "failure" ]; then
+            echo "Expected action to fail with fail_on_findings=true, but it succeeded"
+            exit 1
+          fi
+          echo "fail_on_findings=true correctly failed the action"

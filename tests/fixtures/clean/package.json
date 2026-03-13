@@ -1,0 +1,10 @@
+{
+  "name": "clean-fixture",
+  "version": "1.0.0",
+  "description": "Known-good package for false-positive testing",
+  "scripts": {
+    "build": "tsc --outDir dist",
+    "test": "jest --coverage",
+    "lint": "eslint src/"
+  }
+}

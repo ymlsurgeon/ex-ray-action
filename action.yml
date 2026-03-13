@@ -1,0 +1,41 @@
+name: 'Dev Trust Scanner'
+description: 'Static analysis scanner for malicious patterns in developer tooling configurations (npm scripts, VS Code tasks)'
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  scan_path:
+    description: 'Path to scan (defaults to repo root)'
+    required: false
+    default: '.'
+  webhook_url:
+    description: 'URL to POST SARIF results to (e.g., Sumo Logic HTTP source URL)'
+    required: false
+  tenant_id:
+    description: 'Customer/tenant identifier for MDR routing. Injected into SARIF properties and webhook X-Tenant-ID header.'
+    required: false
+  severity_threshold:
+    description: 'Minimum severity to report: low, medium, high, or critical'
+    required: false
+    default: 'low'
+  format:
+    description: 'Output format: sarif, json, or text'
+    required: false
+    default: 'sarif'
+  fail_on_findings:
+    description: 'Exit with code 1 if any findings are detected at or above severity_threshold (true/false)'
+    required: false
+    default: 'false'
+
+outputs:
+  findings_count:
+    description: 'Total number of findings at or above severity_threshold'
+  critical_count:
+    description: 'Number of CRITICAL findings'
+  sarif_file:
+    description: 'Path to the SARIF output file (only set when format is sarif)'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
