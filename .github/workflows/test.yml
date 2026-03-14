@@ -65,6 +65,9 @@ jobs:
   test-contagious-interview:
     name: Contagious Interview attack is detected
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -83,6 +86,13 @@ jobs:
             exit 1
           fi
           echo "Malicious vscode fixture: ${{ steps.scan.outputs.critical_count }} critical finding(s) (correct)"
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif_file }}
+          category: contagious-interview-self-test
 
   test-severity-filter:
     name: Severity threshold filters low findings
