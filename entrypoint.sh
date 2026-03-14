@@ -4,7 +4,12 @@ set -e
 SCAN_PATH="${INPUT_SCAN_PATH:-.}"
 FORMAT="${INPUT_FORMAT:-sarif}"
 SEVERITY="${INPUT_SEVERITY_THRESHOLD:-low}"
-SARIF_FILE="/tmp/dev-trust-scanner-results.sarif"
+
+# Write SARIF to the mounted workspace so the file persists after the container exits.
+# Inside Docker: /github/workspace is the mount point.
+# $GITHUB_WORKSPACE (from env) holds the HOST-side path the runner uses to find the file.
+SARIF_CONTAINER_PATH="/github/workspace/dev-trust-scanner-results.sarif"
+SARIF_HOST_PATH="${GITHUB_WORKSPACE}/dev-trust-scanner-results.sarif"
 
 # Build command as array to avoid shell injection via eval
 CMD_ARGS=("${SCAN_PATH}" "--format" "${FORMAT}" "--severity" "${SEVERITY}")
@@ -12,8 +17,8 @@ CMD_ARGS=("${SCAN_PATH}" "--format" "${FORMAT}" "--severity" "${SEVERITY}")
 [ -n "${INPUT_WEBHOOK_URL}" ]  && CMD_ARGS+=("--webhook-url" "${INPUT_WEBHOOK_URL}")
 [ -n "${INPUT_TENANT_ID}" ]    && CMD_ARGS+=("--tenant-id"   "${INPUT_TENANT_ID}")
 
-# Always write to a file so GitHub upload-sarif can find it
-[ "${FORMAT}" = "sarif" ] && CMD_ARGS+=("--output" "${SARIF_FILE}")
+# Always write SARIF to file so GitHub upload-sarif can find it
+[ "${FORMAT}" = "sarif" ] && CMD_ARGS+=("--output" "${SARIF_CONTAINER_PATH}")
 
 # Run the scanner
 # Use || to capture exit code without triggering set -e:
@@ -27,11 +32,11 @@ echo "::endgroup::"
 FINDINGS=0
 CRITICAL=0
 
-if [ "${FORMAT}" = "sarif" ] && [ -f "${SARIF_FILE}" ]; then
+if [ "${FORMAT}" = "sarif" ] && [ -f "${SARIF_CONTAINER_PATH}" ]; then
     FINDINGS=$(python3 -c "
 import json, sys
 try:
-    d = json.load(open('${SARIF_FILE}'))
+    d = json.load(open('${SARIF_CONTAINER_PATH}'))
     print(len(d.get('runs', [{}])[0].get('results', [])))
 except Exception:
     print(0)
@@ -39,13 +44,14 @@ except Exception:
     CRITICAL=$(python3 -c "
 import json, sys
 try:
-    d = json.load(open('${SARIF_FILE}'))
+    d = json.load(open('${SARIF_CONTAINER_PATH}'))
     results = d.get('runs', [{}])[0].get('results', [])
     print(sum(1 for r in results if r.get('level') == 'error'))
 except Exception:
     print(0)
 ")
-    echo "sarif_file=${SARIF_FILE}" >> "${GITHUB_OUTPUT}"
+    # Output the HOST-side path so downstream steps (upload-sarif, etc.) can find it
+    echo "sarif_file=${SARIF_HOST_PATH}" >> "${GITHUB_OUTPUT}"
 fi
 
 echo "findings_count=${FINDINGS}" >> "${GITHUB_OUTPUT}"
