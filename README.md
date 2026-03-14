@@ -155,3 +155,5 @@ jobs:
 ## Scanner Repository
 
 [ymlsurgeon/dev-trust-scanner](https://github.com/ymlsurgeon/dev-trust-scanner)
+
+<!-- ci: trigger test run -->
