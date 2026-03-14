@@ -16,9 +16,11 @@ CMD_ARGS=("${SCAN_PATH}" "--format" "${FORMAT}" "--severity" "${SEVERITY}")
 [ "${FORMAT}" = "sarif" ] && CMD_ARGS+=("--output" "${SARIF_FILE}")
 
 # Run the scanner
+# Use || to capture exit code without triggering set -e:
+#   exit 0 = no findings, exit 1 = findings detected, exit 2 = scan error
 echo "::group::Dev Trust Scanner"
-dev-trust-scan "${CMD_ARGS[@]}"
-SCAN_EXIT=$?
+dev-trust-scan "${CMD_ARGS[@]}" || SCAN_EXIT=$?
+SCAN_EXIT="${SCAN_EXIT:-0}"
 echo "::endgroup::"
 
 # Parse output file for action outputs (sarif format only)
