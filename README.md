@@ -1,10 +1,11 @@
 # Dev Trust Scanner — GitHub Action
 
-Static analysis scanner for malicious patterns in developer tooling configurations. Detects supply chain attack techniques in npm lifecycle scripts and VS Code tasks before they reach your developers.
+Static analysis scanner for malicious patterns in developer tooling configurations. Detects supply chain attack techniques in npm lifecycle scripts, VS Code tasks, and GitHub Actions workflows before they reach your developers.
 
 **Detects:**
 - Malicious `postinstall`/`preinstall` scripts (eval, base64 payloads, credential exfiltration)
 - VS Code tasks that auto-execute on folder open (Contagious Interview attack pattern)
+- GitHub Actions workflows with runner abuse, secret exfiltration, or Shai-Hulud campaign markers
 - Obfuscated commands, high-entropy encoded payloads, suspicious network calls
 
 ---
@@ -20,6 +21,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.vscode/tasks.json'
+      - '.github/workflows/**'
   push:
     branches: [main]
 
@@ -109,6 +111,7 @@ on:
     paths:
       - 'package.json'
       - '.vscode/tasks.json'
+      - '.github/workflows/**'
   schedule:
     - cron: '0 6 * * 1'  # Monday 6am UTC
 
@@ -149,6 +152,19 @@ jobs:
 |---|---|
 | `package.json` | `postinstall`, `preinstall`, `install`, `prepare` scripts with eval, base64, network calls, obfuscation, environment variable access |
 | `.vscode/tasks.json` | Auto-execution on folder open (`runOn: folderOpen`), obfuscated commands, hidden output, suspicious shell patterns |
+| `.github/workflows/*.yml` | Workflow injection, self-hosted runner abuse/registration, secret exfiltration, suspicious triggers, Shai-Hulud campaign markers |
+
+### GitHub Actions Rules
+
+| Rule ID | Severity | Description |
+|---|---|---|
+| GHA-001 | CRITICAL | Known malicious workflow filename (Shai-Hulud campaign) |
+| GHA-002 | HIGH | Suspicious trigger combination (`workflow_dispatch` + `schedule` — persistence pattern) |
+| GHA-003 | HIGH | External script download and execution (`curl \| bash`, `wget \| sh`) |
+| GHA-004 | HIGH | Environment variable / secret dumping (`secrets.*`, `$GITHUB_TOKEN`) |
+| GHA-005 | MEDIUM | Self-hosted runner usage (`runs-on: self-hosted`) |
+| GHA-006 | CRITICAL | Self-hosted runner registration in workflow |
+| GHA-007 | CRITICAL | Runner service installation (`svc.sh install`, `systemctl`) |
 
 ---
 
