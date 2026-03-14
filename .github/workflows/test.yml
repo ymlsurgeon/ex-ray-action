@@ -32,6 +32,9 @@ jobs:
   test-malicious-npm:
     name: Malicious npm package is detected
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -117,7 +120,7 @@ jobs:
 
       - name: Verify tenant ID in SARIF
         run: |
-          SARIF_FILE="${{ steps.scan.outputs.sarif_file }}"
+          SARIF_FILE="${GITHUB_WORKSPACE}/${{ steps.scan.outputs.sarif_file }}"
           TENANT=$(python3 -c "
           import json
           d = json.load(open('${SARIF_FILE}'))

@@ -5,11 +5,12 @@ SCAN_PATH="${INPUT_SCAN_PATH:-.}"
 FORMAT="${INPUT_FORMAT:-sarif}"
 SEVERITY="${INPUT_SEVERITY_THRESHOLD:-low}"
 
-# Write SARIF to the mounted workspace so the file persists after the container exits.
-# Inside Docker: /github/workspace is the mount point.
-# $GITHUB_WORKSPACE (from env) holds the HOST-side path the runner uses to find the file.
-SARIF_CONTAINER_PATH="/github/workspace/dev-trust-scanner-results.sarif"
-SARIF_HOST_PATH="${GITHUB_WORKSPACE}/dev-trust-scanner-results.sarif"
+# Write SARIF to the mounted workspace so it persists after the container exits.
+# /github/workspace is the Docker mount point for the runner workspace.
+# Output a relative filename — Node.js actions (upload-sarif) and run: steps both
+# resolve relative paths from $GITHUB_WORKSPACE on the host.
+SARIF_FILENAME="dev-trust-scanner-results.sarif"
+SARIF_CONTAINER_PATH="/github/workspace/${SARIF_FILENAME}"
 
 # Build command as array to avoid shell injection via eval
 CMD_ARGS=("${SCAN_PATH}" "--format" "${FORMAT}" "--severity" "${SEVERITY}")
@@ -50,8 +51,8 @@ try:
 except Exception:
     print(0)
 ")
-    # Output the HOST-side path so downstream steps (upload-sarif, etc.) can find it
-    echo "sarif_file=${SARIF_HOST_PATH}" >> "${GITHUB_OUTPUT}"
+    # Output relative filename — resolved from $GITHUB_WORKSPACE by downstream steps
+    echo "sarif_file=${SARIF_FILENAME}" >> "${GITHUB_OUTPUT}"
 fi
 
 echo "findings_count=${FINDINGS}" >> "${GITHUB_OUTPUT}"
