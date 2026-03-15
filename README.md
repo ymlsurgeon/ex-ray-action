@@ -50,7 +50,71 @@ Findings appear as inline annotations on pull requests via GitHub code scanning.
 
 ---
 
-## MDR Integration (with Sumo Logic webhook)
+## Inputs
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `scan_path` | No | `.` | Directory to scan |
+| `webhook_url` | No | — | HTTP endpoint to POST SARIF results to |
+| `tenant_id` | No | — | Customer identifier — injected into SARIF `run.properties.tenantId` and `X-Tenant-ID` webhook header |
+| `severity_threshold` | No | `low` | Minimum severity to report: `low`, `medium`, `high`, `critical` |
+| `format` | No | `sarif` | Output format: `sarif`, `json`, `text` |
+| `fail_on_findings` | No | `false` | Exit code 1 if any findings at or above threshold are detected |
+
+## Outputs
+
+| Output | Description |
+|---|---|
+| `findings_count` | Total findings at or above `severity_threshold` |
+| `critical_count` | Number of CRITICAL findings |
+| `files_scanned` | Number of files examined during the scan |
+| `sarif_file` | Relative path to SARIF file in the workspace (set when `format: sarif`). Use `${GITHUB_WORKSPACE}/${{ steps.scan.outputs.sarif_file }}` in `run:` steps. |
+
+---
+
+## Usage Patterns
+
+### Block PRs on Critical Findings
+
+```yaml
+      - uses: ymlsurgeon/ex-ray-action@v1
+        with:
+          severity_threshold: high
+          fail_on_findings: 'true'
+```
+
+### Scheduled Weekly Scan
+
+```yaml
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - '.vscode/tasks.json'
+      - '.github/workflows/**'
+  schedule:
+    - cron: '0 6 * * 1'  # Monday 6am UTC
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ymlsurgeon/ex-ray-action@v1
+        with:
+          webhook_url: ${{ secrets.EXRAY_WEBHOOK_URL }}
+          tenant_id: ${{ vars.EXRAY_TENANT_ID }}
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif_file }}
+```
+
+### MDR Integration (Sumo Logic webhook)
 
 ```yaml
       - name: Run Ex-Ray
@@ -83,72 +147,6 @@ Findings appear as inline annotations on pull requests via GitHub code scanning.
 
 ---
 
-## Inputs
-
-| Input | Required | Default | Description |
-|---|---|---|---|
-| `scan_path` | No | `.` | Directory to scan |
-| `webhook_url` | No | — | HTTP endpoint to POST SARIF results to |
-| `tenant_id` | No | — | Customer identifier — injected into SARIF `run.properties.tenantId` and `X-Tenant-ID` webhook header |
-| `severity_threshold` | No | `low` | Minimum severity to report: `low`, `medium`, `high`, `critical` |
-| `format` | No | `sarif` | Output format: `sarif`, `json`, `text` |
-| `fail_on_findings` | No | `false` | Exit code 1 if any findings at or above threshold are detected |
-
-## Outputs
-
-| Output | Description |
-|---|---|
-| `findings_count` | Total findings at or above `severity_threshold` |
-| `critical_count` | Number of CRITICAL findings |
-| `files_scanned` | Number of files examined during the scan |
-| `sarif_file` | Relative path to SARIF file in the workspace (set when `format: sarif`). Use `${GITHUB_WORKSPACE}/${{ steps.scan.outputs.sarif_file }}` in `run:` steps. |
-
----
-
-## Scheduled Weekly Scan
-
-```yaml
-on:
-  pull_request:
-    paths:
-      - 'package.json'
-      - '.vscode/tasks.json'
-      - '.github/workflows/**'
-  schedule:
-    - cron: '0 6 * * 1'  # Monday 6am UTC
-
-jobs:
-  scan:
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ymlsurgeon/ex-ray-action@v1
-        with:
-          webhook_url: ${{ secrets.EXRAY_WEBHOOK_URL }}
-          tenant_id: ${{ vars.EXRAY_TENANT_ID }}
-      - uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: ${{ steps.scan.outputs.sarif_file }}
-```
-
----
-
-## Block PRs on Critical Findings
-
-```yaml
-      - uses: ymlsurgeon/ex-ray-action@v1
-        with:
-          severity_threshold: high
-          fail_on_findings: 'true'
-```
-
----
-
 ## What Gets Scanned
 
 | File | What We Detect |
@@ -171,6 +169,6 @@ jobs:
 
 ---
 
-## Scanner Repository
+## About the Scanner
 
-[ymlsurgeon/ex-ray](https://github.com/ymlsurgeon/ex-ray)
+This action wraps [ex-ray](https://github.com/ymlsurgeon/ex-ray), an open-source static analysis scanner. Ex-Ray targets the developer autopilot attack surface — configurations that execute silently without scrutiny — and detects patterns from real campaigns including Contagious Interview (DPRK weaponized VS Code tasks) and Shai Hulud (npm worm spreading via postinstall scripts).
