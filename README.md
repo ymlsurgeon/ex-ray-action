@@ -1,4 +1,4 @@
-# Dev Trust Scanner — GitHub Action
+# Ex-Ray — GitHub Action
 
 Static analysis scanner for malicious patterns in developer tooling configurations. Detects supply chain attack techniques in npm lifecycle scripts, VS Code tasks, and GitHub Actions workflows before they reach your developers.
 
@@ -13,8 +13,8 @@ Static analysis scanner for malicious patterns in developer tooling configuratio
 ## Quick Start
 
 ```yaml
-# .github/workflows/dev-trust-scan.yml
-name: Dev Trust Scanner
+# .github/workflows/ex-ray.yml
+name: Ex-Ray
 on:
   pull_request:
     paths:
@@ -31,12 +31,13 @@ jobs:
     permissions:
       security-events: write  # Required for SARIF upload
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Dev Trust Scanner
+      - name: Run Ex-Ray
         id: scan
-        uses: ymlsurgeon/dev-trust-scanner-action@main
+        uses: ymlsurgeon/ex-ray-action@v1
 
       - name: Upload to GitHub Security
         if: always()
@@ -52,11 +53,11 @@ Findings appear as inline annotations on pull requests via GitHub code scanning.
 ## MDR Integration (with Sumo Logic webhook)
 
 ```yaml
-      - name: Run Dev Trust Scanner
+      - name: Run Ex-Ray
         id: scan
-        uses: ymlsurgeon/dev-trust-scanner-action@main
+        uses: ymlsurgeon/ex-ray-action@v1
         with:
-          webhook_url: ${{ secrets.DTS_WEBHOOK_URL }}
+          webhook_url: ${{ secrets.EXRAY_WEBHOOK_URL }}
           tenant_id: "acme-corp"
           severity_threshold: "medium"
 
@@ -69,7 +70,7 @@ Findings appear as inline annotations on pull requests via GitHub code scanning.
       - name: Summary
         if: always()
         run: |
-          echo "### Dev Trust Scanner" >> $GITHUB_STEP_SUMMARY
+          echo "### Ex-Ray" >> $GITHUB_STEP_SUMMARY
           echo "- Findings: ${{ steps.scan.outputs.findings_count }}" >> $GITHUB_STEP_SUMMARY
           echo "- Critical: ${{ steps.scan.outputs.critical_count }}" >> $GITHUB_STEP_SUMMARY
 ```
@@ -77,7 +78,7 @@ Findings appear as inline annotations on pull requests via GitHub code scanning.
 **Setting up the Sumo Logic webhook:**
 1. In Sumo Logic, create an **HTTP Source** under Manage Data → Collection
 2. Copy the generated HTTP Source URL
-3. Add it as a repository secret: `DTS_WEBHOOK_URL`
+3. Add it as a repository secret: `EXRAY_WEBHOOK_URL`
 4. SARIF will be POSTed to that URL on every scan with the `X-Tenant-ID` header set to your `tenant_id`
 
 ---
@@ -99,6 +100,7 @@ Findings appear as inline annotations on pull requests via GitHub code scanning.
 |---|---|
 | `findings_count` | Total findings at or above `severity_threshold` |
 | `critical_count` | Number of CRITICAL findings |
+| `files_scanned` | Number of files examined during the scan |
 | `sarif_file` | Relative path to SARIF file in the workspace (set when `format: sarif`). Use `${GITHUB_WORKSPACE}/${{ steps.scan.outputs.sarif_file }}` in `run:` steps. |
 
 ---
@@ -121,12 +123,13 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
-      - uses: ymlsurgeon/dev-trust-scanner-action@main
+      - uses: ymlsurgeon/ex-ray-action@v1
         with:
-          webhook_url: ${{ secrets.DTS_WEBHOOK_URL }}
-          tenant_id: ${{ vars.DTS_TENANT_ID }}
+          webhook_url: ${{ secrets.EXRAY_WEBHOOK_URL }}
+          tenant_id: ${{ vars.EXRAY_TENANT_ID }}
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -138,7 +141,7 @@ jobs:
 ## Block PRs on Critical Findings
 
 ```yaml
-      - uses: ymlsurgeon/dev-trust-scanner-action@main
+      - uses: ymlsurgeon/ex-ray-action@v1
         with:
           severity_threshold: high
           fail_on_findings: 'true'
@@ -170,6 +173,4 @@ jobs:
 
 ## Scanner Repository
 
-[ymlsurgeon/dev-trust-scanner](https://github.com/ymlsurgeon/dev-trust-scanner)
-
-<!-- ci: trigger test run 2 -->
+[ymlsurgeon/ex-ray](https://github.com/ymlsurgeon/ex-ray)

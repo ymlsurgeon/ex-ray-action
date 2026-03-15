@@ -9,7 +9,7 @@ SEVERITY="${INPUT_SEVERITY_THRESHOLD:-low}"
 # /github/workspace is the Docker mount point for the runner workspace.
 # Output a relative filename — Node.js actions (upload-sarif) and run: steps both
 # resolve relative paths from $GITHUB_WORKSPACE on the host.
-SARIF_FILENAME="dev-trust-scanner-results.sarif"
+SARIF_FILENAME="ex-ray-results.sarif"
 SARIF_CONTAINER_PATH="/github/workspace/${SARIF_FILENAME}"
 
 # Build command as array to avoid shell injection via eval
@@ -24,8 +24,8 @@ CMD_ARGS=("${SCAN_PATH}" "--format" "${FORMAT}" "--severity" "${SEVERITY}")
 # Run the scanner
 # Use || to capture exit code without triggering set -e:
 #   exit 0 = no findings, exit 1 = findings detected, exit 2 = scan error
-echo "::group::Dev Trust Scanner"
-dev-trust-scan "${CMD_ARGS[@]}" || SCAN_EXIT=$?
+echo "::group::Ex-Ray"
+exray "${CMD_ARGS[@]}" || SCAN_EXIT=$?
 SCAN_EXIT="${SCAN_EXIT:-0}"
 echo "::endgroup::"
 
@@ -69,7 +69,7 @@ echo "findings_count=${FINDINGS}" >> "${GITHUB_OUTPUT}"
 echo "critical_count=${CRITICAL}" >> "${GITHUB_OUTPUT}"
 echo "files_scanned=${FILES_SCANNED}" >> "${GITHUB_OUTPUT}"
 
-echo "Dev Trust Scanner: ${FINDINGS} finding(s) detected (${CRITICAL} critical) — ${FILES_SCANNED} file(s) examined"
+echo "Ex-Ray: ${FINDINGS} finding(s) detected (${CRITICAL} critical) — ${FILES_SCANNED} file(s) examined"
 
 # Write GitHub Actions step summary
 if [ -n "${GITHUB_STEP_SUMMARY}" ]; then
@@ -89,7 +89,7 @@ except Exception:
     scanned = []
 
 lines = []
-lines.append('## Dev Trust Scanner')
+lines.append('## Ex-Ray')
 lines.append('')
 lines.append('| | |')
 lines.append('|---|---|')
@@ -112,7 +112,7 @@ fi
 
 # Fail if configured and findings exist
 if [ "${INPUT_FAIL_ON_FINDINGS}" = "true" ] && [ "${FINDINGS}" -gt "0" ]; then
-    echo "::error::Dev Trust Scanner found ${FINDINGS} finding(s) — failing build"
+    echo "::error::Ex-Ray found ${FINDINGS} finding(s) — failing build"
     exit 1
 fi
 

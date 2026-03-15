@@ -1,4 +1,4 @@
-name: 'Dev Trust Scanner'
+name: 'Ex-Ray'
 description: 'Static analysis scanner for malicious patterns in developer tooling configurations (npm scripts, VS Code tasks)'
 branding:
   icon: 'shield'
